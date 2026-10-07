@@ -53,7 +53,7 @@ jobs:
       - name: Escanear secretos (historial completo)
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
-            git /repo -v --report-format json --report-path /repo/gitleaks-report.json
+            git /repo -v --log-opts="HEAD" --report-format json --report-path /repo/gitleaks-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
