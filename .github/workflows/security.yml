@@ -1,0 +1,91 @@
+name: CI + Security
+
+on:
+  push:
+    branches: [vulnerable, fixed]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    name: Lint y pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Pruebas (pytest)
+        run: pytest -q
+
+  bandit:
+    name: SAST - Bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install bandit
+      - name: Escanear codigo
+        shell: bash
+        run: bandit -r . -x ./tests,./.venv,./venv 2>&1 | tee bandit-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.txt
+
+  gitleaks:
+    name: Secretos - Gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Escanear secretos (historial completo)
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            git /repo --report-format json --report-path /repo/gitleaks-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: ignore
+
+  pip-audit:
+    name: Dependencias - pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pip-audit
+      - name: Auditar dependencias
+        shell: bash
+        run: pip-audit -r requirements.txt --desc on 2>&1 | tee pip-audit-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.txt
+
+  deploy:
+    name: Despliegue en Render
+    needs: [lint-test, bandit, gitleaks, pip-audit]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/fixed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar despliegue
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK"

@@ -1,0 +1,4 @@
+# FALLO 3: versiones antiguas con vulnerabilidades conocidas (CVE)
+Flask==2.2.2
+Werkzeug==2.2.2
+gunicorn==20.1.0
