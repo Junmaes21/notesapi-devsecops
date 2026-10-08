@@ -28,6 +28,53 @@ def init_db(path):
         ("demo", generate_password_hash("demo123")))
 
 
+HOME = """<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NotesAPI</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 560px; margin: 2rem auto;
+       padding: 0 1rem; color: #222; }
+input, button { font: inherit; padding: .5rem; margin: .25rem 0; }
+input { width: 100%; box-sizing: border-box; }
+button { cursor: pointer; margin-right: .5rem; }
+pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+.tag { background: #eef; padding: .1rem .5rem; border-radius: 4px; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>NotesAPI</h1>
+<p><span class="tag">version corregida</span></p>
+<p>API de notas usada para demostrar escaneo de vulnerabilidades automatizado
+(Bandit, Gitleaks, pip-audit y Grype) con GitHub Actions.</p>
+<h2>Probar el login</h2>
+<p>Usuario de prueba: <b>demo</b> / <b>demo123</b></p>
+<input id="u" placeholder="usuario">
+<input id="p" type="password" placeholder="contrasena">
+<button onclick="enviar(u.value, p.value)">Entrar</button>
+<button onclick="enviar('demo' + String.fromCharCode(39) + ' --', 'x')">
+Probar SQL injection</button>
+<pre id="out">Respuesta de la API...</pre>
+<p>Rutas: <code>GET /health</code>, <code>POST /login</code>,
+<code>GET|POST /notes</code> (requiere clave de API).</p>
+<script>
+async function enviar(usuario, clave) {
+  const r = await fetch('/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: usuario, password: clave})
+  });
+  document.getElementById('out').textContent =
+    r.status + ' ' + JSON.stringify(await r.json(), null, 2);
+}
+</script>
+</body>
+</html>
+"""
+
+
 def create_app(db_path="notes.db", api_key=None):
     app = Flask(__name__)
     init_db(db_path)
@@ -37,6 +84,10 @@ def create_app(db_path="notes.db", api_key=None):
     def authorized():
         sent = request.headers.get("X-API-Key", "")
         return bool(key) and hmac.compare_digest(sent, key)
+
+    @app.get("/")
+    def home():
+        return HOME
 
     @app.get("/health")
     def health():
