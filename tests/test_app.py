@@ -9,6 +9,12 @@ def client(tmp_path):
     return app.test_client()
 
 
+def test_pagina_inicio(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert b"NotesAPI" in r.data
+
+
 def test_health(client):
     assert client.get("/health").json == {"status": "ok"}
 

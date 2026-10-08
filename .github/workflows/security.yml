@@ -79,9 +79,30 @@ jobs:
           name: pip-audit-report
           path: pip-audit-report.txt
 
+  grype:
+    name: Dependencias - Grype
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias en una carpeta aislada
+        run: pip install --target deps -r requirements.txt
+      - name: Escanear con Grype
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD/deps:/scan" anchore/grype:latest \
+            dir:/scan --fail-on medium 2>&1 | tee grype-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grype-report
+          path: grype-report.txt
+
   deploy:
     name: Despliegue en Render
-    needs: [lint-test, bandit, gitleaks, pip-audit]
+    needs: [lint-test, bandit, gitleaks, pip-audit, grype]
     if: github.event_name == 'push' && github.ref == 'refs/heads/fixed'
     runs-on: ubuntu-latest
     steps:

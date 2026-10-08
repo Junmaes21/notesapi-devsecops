@@ -5,4 +5,4 @@ pythonpath = ["."]
 line-length = 100
 
 [tool.ruff.lint]
-ignore = ["UP031"]  # intencional: la SQL injection es el fallo de demostración
+ignore = ["UP031"]  # intencional: la SQL injection es el fallo de demostracion
