@@ -336,18 +336,41 @@ async function lab(kind) {
   const body = kind === 'sqli'
     ? { username: "demo' --", password: 'x' }
     : { username: 'demo', password: 'demo123' };
-  $('#lab-out').textContent = 'Enviando...';
-  $('#lab-verdict').textContent = '';
-  const r = await api('/login', 'POST', body, true);
-  $('#lab-out').textContent = 'POST /login  ' + JSON.stringify(body) + '\n\n' +
-    r.status + '  ' + JSON.stringify(r.data, null, 2);
+  const out = $('#lab-out');
   const v = $('#lab-verdict');
+  out.textContent = 'Enviando...';
+  v.className = 'verdict';
+  v.textContent = '';
+  let r;
+  try {
+    r = await api('/login', 'POST', body);
+  } catch (e) {
+    out.textContent = 'Sin conexión con el servidor.';
+    return;
+  }
+  out.textContent = 'POST /login  ' + JSON.stringify(body) + '\n\n' +
+    r.status + '  ' + JSON.stringify(r.data, null, 2);
+  if (r.data === null) {
+    v.textContent = 'La respuesta no viene de la API (no es JSON). Revisa el servidor o el proxy.';
+    return;
+  }
+  if (r.ok) await api('/logout', 'POST', {}); /* el laboratorio no deja la sesión abierta */
   if (kind === 'sqli') {
-    v.className = 'verdict ' + (r.ok ? 'bad' : 'ok');
-    v.textContent = r.ok ? 'La inyección funcionó: entró sin conocer la contraseña.'
-                         : 'Ataque bloqueado: el servidor trató el texto como un dato.';
+    if (r.ok) {
+      v.className = 'verdict bad';
+      v.textContent = 'La inyección funcionó: entró sin conocer la contraseña.';
+    } else if (r.status === 401) {
+      v.className = 'verdict ok';
+      v.textContent = 'Ataque bloqueado: el servidor trató el texto como un dato.';
+    } else {
+      v.textContent = 'Respuesta inesperada (' + r.status + ').';
+    }
+  } else if (r.ok) {
+    v.className = 'verdict ok';
+    v.textContent = 'Login normal correcto.';
   } else {
-    v.className = 'verdict';
+    v.className = 'verdict bad';
+    v.textContent = 'El servidor rechazó el login normal (' + r.status + ').';
   }
 }
 $('#lab-ok').addEventListener('click', () => lab('ok'));
